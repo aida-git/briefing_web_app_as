@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A&S Briefing — PWA nel browser</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .device {
+    width: 393px;
+    height: 852px;
+    background: #1c1c1e;
+    border-radius: 54px;
+    padding: 14px;
+    box-shadow:
+      0 0 0 1px #3a3a3c,
+      0 0 0 3px #1c1c1e,
+      0 0 0 4px #48484a,
+      0 30px 80px rgba(0,0,0,0.8);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .device::before {
+    content: '';
+    position: absolute;
+    top: 14px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #1c1c1e;
+    border-radius: 0 0 20px 20px;
+    z-index: 10;
+  }
+
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 42px;
+    overflow: hidden;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* OS bar */
+  .os-bar {
+    background: #1c1c1e;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 52px 24px 8px;
+    flex-shrink: 0;
+  }
+  .os-time { font-size: 15px; font-weight: 600; color: #fff; }
+  .os-icons { display: flex; gap: 6px; align-items: center; }
+  .os-icons i { font-size: 15px; color: rgba(255,255,255,0.8); }
+
+  /* Safari chrome */
+  .safari-top {
+    background: #f2f2f7;
+    border-bottom: 0.5px solid rgba(0,0,0,0.15);
+    flex-shrink: 0;
+  }
+  .safari-tabs {
+    display: flex; padding: 6px 12px 0; gap: 4px;
+  }
+  .tab-pill {
+    font-size: 11px; padding: 4px 12px;
+    border-radius: 8px 8px 0 0;
+    background: #fff; color: #1c1c1e; font-weight: 500;
+    border: 0.5px solid rgba(0,0,0,0.1); border-bottom: none;
+  }
+  .tab-pill.inactive { background: transparent; color: rgba(0,0,0,0.35); border-color: transparent; }
+  .url-bar {
+    display: flex; align-items: center; gap: 8px;
+    margin: 5px 10px 6px;
+    background: #fff;
+    border-radius: 12px; padding: 7px 12px;
+    border: 0.5px solid rgba(0,0,0,0.12);
+  }
+  .url-bar i { font-size: 14px; color: #34C759; }
+  .url-text { font-size: 12px; color: #1c1c1e; flex: 1; }
+  .url-text .domain { font-weight: 500; }
+  .url-text .path { color: rgba(0,0,0,0.38); }
+  .url-actions { display: flex; gap: 10px; }
+  .url-actions i { font-size: 17px; color: rgba(0,0,0,0.38); }
+
+  .pwa-banner {
+    background: #fff;
+    border-bottom: 0.5px solid rgba(0,0,0,0.1);
+    padding: 9px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .pwa-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: #1A1A2E;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pwa-icon i { font-size: 17px; color: #C8A96E; }
+  .pwa-text { flex: 1; }
+  .pwa-title { font-size: 12px; font-weight: 600; color: #1c1c1e; }
+  .pwa-sub { font-size: 10px; color: rgba(0,0,0,0.4); }
+  .pwa-add { font-size: 12px; font-weight: 600; color: #007AFF; padding: 5px 10px; border: 0.5px solid rgba(0,122,255,0.35); border-radius: 7px; white-space: nowrap; cursor: pointer; }
+
+  /* Page views */
+  .page-wrap { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .view { display: none; flex-direction: column; height: 100%; }
+  .view.active { display: flex; }
+
+  /* ── AGENDA VIEW ── */
+  .top-bar {
+    background: #1A1A2E;
+    padding: 12px 16px 14px;
+    flex-shrink: 0;
+  }
+  .as-logo { font-size: 10px; letter-spacing: 0.14em; color: #C8A96E; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
+  .as-date { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 9px; }
+  .agent-row { display: flex; align-items: center; gap: 10px; }
+  .av { width: 30px; height: 30px; border-radius: 50%; background: rgba(200,169,110,0.2); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: #C8A96E; }
+  .ag-name { font-size: 13px; font-weight: 600; color: #fff; }
+  .ag-sub { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  .agenda-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .agenda-scroll::-webkit-scrollbar { display: none; }
+  .agenda-body { padding: 12px 16px; }
+  .sec-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #C8A96E; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sec-label::after { content:''; flex:1; height:0.5px; background:rgba(200,169,110,0.25); }
+
+  .appt-card {
+    background: #fff;
+    border: 0.5px solid rgba(0,0,0,0.1);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .1s;
+  }
+  .appt-card:active { transform: scale(0.98); }
+  .appt-card-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .appt-card-head.next-up { border-left: 3px solid #C8A96E; }
+  .appt-time-col { text-align: center; min-width: 36px; }
+  .appt-hr { font-size: 14px; font-weight: 600; color: #1c1c1e; }
+  .appt-min { font-size: 11px; color: rgba(0,0,0,0.4); }
+  .appt-vdiv { width: 0.5px; height: 34px; background: rgba(0,0,0,0.1); }
+  .appt-main { flex: 1; min-width: 0; }
+  .appt-co { font-size: 13px; font-weight: 600; color: #1c1c1e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .appt-det { font-size: 11px; color: rgba(0,0,0,0.45); }
+  .next-badge { font-size: 10px; font-weight: 600; background: rgba(200,169,110,0.15); color: #854F0B; padding: 3px 9px; border-radius: 12px; white-space: nowrap; }
+  .appt-card-ai {
+    background: rgba(200,169,110,0.06);
+    border-top: 0.5px solid rgba(200,169,110,0.18);
+    padding: 9px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .appt-card-ai span { font-size: 11px; color: #854F0B; font-weight: 500; }
+  .appt-card-ai i { font-size: 14px; color: #C8A96E; }
+
+  /* ── DETAIL VIEW ── */
+  .co-header { background: #1A1A2E; padding: 10px 16px 13px; flex-shrink: 0; }
+  .back-row { display: flex; align-items: center; gap: 6px; margin-bottom: 9px; cursor: pointer; }
+  .back-row span { font-size: 12px; color: rgba(255,255,255,0.45); }
+  .back-row i { font-size: 17px; color: rgba(255,255,255,0.45); }
+  .co-switcher { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .co-switcher::-webkit-scrollbar { display: none; }
+  .co-pill {
+    font-size: 11px; font-weight: 600; padding: 5px 11px; border-radius: 20px; cursor: pointer;
+    white-space: nowrap; border: 0.5px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.4);
+    background: transparent; flex-shrink: 0; transition: all .15s;
+  }
+  .co-pill.active { background: rgba(200,169,110,0.2); color: #C8A96E; border-color: rgba(200,169,110,0.4); }
+  .co-name { font-size: 16px; font-weight: 600; color: #fff; line-height: 1.2; }
+  .co-sub { font-size: 12px; color: rgba(200,169,110,0.65); margin-top: 2px; }
+  .co-meta { display: flex; align-items: center; gap: 10px; margin-top: 9px; }
+  .co-time-badge { font-size: 11px; color: rgba(200,169,110,0.9); background: rgba(200,169,110,0.12); padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+  .co-ph { font-size: 12px; color: rgba(255,255,255,0.38); display: flex; align-items: center; gap: 4px; }
+
+  .tab-bar { display: flex; background: #141428; border-bottom: 0.5px solid rgba(200,169,110,0.15); flex-shrink: 0; }
+  .d-tab {
+    flex: 1; text-align: center; padding: 10px 4px; font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,0.28); letter-spacing: 0.05em; text-transform: uppercase;
+    cursor: pointer; border-bottom: 2px solid transparent; transition: color .15s;
+  }
+  .d-tab.active { color: #C8A96E; border-bottom: 2px solid #C8A96E; }
+
+  .detail-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; }
+  .detail-scroll::-webkit-scrollbar { display: none; }
+  .tab-body { padding: 14px 16px; }
+  .d-panel { display: none; }
+  .d-panel.active { display: block; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; margin-bottom: 14px; }
+  .kpi { background: #f5f5f7; border-radius: 10px; padding: 11px 13px; }
+  .kl { font-size: 10px; color: rgba(0,0,0,0.45); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+  .kv { font-size: 18px; font-weight: 600; color: #1c1c1e; line-height: 1; }
+  .kv.down { color: #993C1D; }
+  .kv.up { color: #3B6D11; }
+  .kd { font-size: 11px; color: rgba(0,0,0,0.4); margin-top: 3px; }
+  .kd.down { color: #993C1D; }
+  .kd.up { color: #3B6D11; }
+
+  .dsec { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #C8A96E; margin: 14px 0 8px; display: flex; align-items: center; gap: 6px; }
+  .dsec::after { content:''; flex:1; height:0.5px; background:rgba(200,169,110,0.25); }
+  .irow { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 0.5px solid rgba(0,0,0,0.07); gap: 10px; }
+  .irow:last-child { border-bottom: none; }
+  .ik { font-size: 12px; color: rgba(0,0,0,0.45); flex-shrink: 0; }
+  .iv { font-size: 12px; font-weight: 500; color: #1c1c1e; text-align: right; }
+  .iv a { color: #007AFF; text-decoration: none; }
+
+  .alert { border-left: 3px solid #C8A96E; background: rgba(200,169,110,0.07); border-radius: 0 10px 10px 0; padding: 10px 12px; margin-bottom: 8px; }
+  .alert.warn { border-left-color: #BA7517; background: rgba(186,117,23,0.07); }
+  .alert.ok { border-left-color: #3B6D11; background: rgba(59,109,17,0.07); }
+  .alert.info { border-left-color: #378ADD; background: rgba(55,138,221,0.07); }
+  .at { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #854F0B; margin-bottom: 4px; }
+  .at.ok { color: #3B6D11; }
+  .at.info { color: #185FA5; }
+  .atxt { font-size: 12px; color: #1c1c1e; line-height: 1.55; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 20px; font-size: 11px; border: 0.5px solid rgba(0,0,0,0.12); color: rgba(0,0,0,0.45); }
+  .chip.on { color: #0C447C; border-color: #B5D4F4; background: #E6F1FB; }
+  .chip.off { opacity: 0.4; }
+  .chip i { font-size: 13px; }
+  .stars { color: #C8A96E; font-size: 14px; letter-spacing: 1px; }
+
+  .ai-cta {
+    width: 100%; margin-top: 14px; padding: 12px;
+    background: #1A1A2E; color: #C8A96E;
+    font-size: 13px; font-weight: 600;
+    border-radius: 12px; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: opacity .15s;
+  }
+  .ai-cta:hover { opacity: 0.88; }
+  .ai-cta i { font-size: 16px; }
+
+  .action-bar {
+    display: flex; gap: 10px;
+    padding: 10px 16px 12px;
+    background: #f2f2f7;
+    border-top: 0.5px solid rgba(0,0,0,0.1);
+    flex-shrink: 0;
+  }
+  .act-btn {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    text-decoration: none; cursor: pointer; border: none;
+  }
+  .act-primary { background: #1A1A2E; color: #C8A96E; }
+  .act-secondary { background: #fff; color: #1c1c1e; border: 0.5px solid rgba(0,0,0,0.14); }
+
+  /* Safari bottom */
+  .safari-bottom {
+    background: #f2f2f7;
+    border-top: 0.5px solid rgba(0,0,0,0.12);
+    padding: 9px 20px 6px;
+    display: flex; align-items: center; justify-content: space-around;
+    flex-shrink: 0;
+  }
+  .safari-bottom i { font-size: 22px; color: #007AFF; }
+  .safari-bottom i.dim { color: rgba(0,0,0,0.25); }
+
+  .home-indicator {
+    height: 26px; background: #f2f2f7;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .home-bar { width: 130px; height: 5px; background: rgba(0,0,0,0.18); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="screen">
+
+    <div class="os-bar">
+      <span class="os-time">9:54</span>
+      <div class="os-icons">
+        <i class="ti ti-wifi"></i>
+        <i class="ti ti-battery-2"></i>
+      </div>
+    </div>
+
+    <div class="safari-top">
+      <div class="safari-tabs">
+        <div class="tab-pill">Briefing · A&amp;S</div>
+        <div class="tab-pill inactive">WhatsApp</div>
+      </div>
+      <div class="url-bar">
+        <i class="ti ti-lock"></i>
+        <div class="url-text">
+          <span class="domain">briefing.andrewsax.it</span><span class="path" id="url-path">/gaito/0209</span>
+        </div>
+        <div class="url-actions">
+          <i class="ti ti-refresh"></i>
+          <i class="ti ti-share"></i>
+        </div>
+      </div>
+      <div class="pwa-banner">
+        <div class="pwa-icon"><i class="ti ti-briefcase"></i></div>
+        <div class="pwa-text">
+          <div class="pwa-title">A&amp;S Briefing</div>
+          <div class="pwa-sub">Aggiungi alla schermata home</div>
+        </div>
+        <div class="pwa-add">+ Aggiungi</div>
+      </div>
+    </div>
+
+    <div class="page-wrap">
+
+      <!-- AGENDA VIEW -->
+      <div class="view active" id="view-agenda">
+        <div class="top-bar">
+          <div class="as-logo">Andrew &amp; Sax · Briefing</div>
+          <div class="as-date">Martedì 2 settembre 2025</div>
+          <div class="agent-row">
+            <div class="av">MG</div>
+            <div>
+              <div class="ag-name">Michele Gaito</div>
+              <div class="ag-sub">4 appuntamenti oggi</div>
+            </div>
+          </div>
+        </div>
+        <div class="agenda-scroll">
+          <div class="agenda-body">
+            <div class="sec-label">Appuntamenti</div>
+
+            <div class="appt-card" onclick="openDetail(0)">
+              <div class="appt-card-head next-up">
+                <div class="appt-time-col"><div class="appt-hr">10</div><div class="appt-min">:00</div></div>
+                <div class="appt-vdiv"></div>
+                <div class="appt-main">
+                  <div class="appt-co">G &amp; G S.R.L.</div>
+                  <div class="appt-det">Bedizzole · Strutture metalliche · 6 dip.</div>
+                </div>
+                <div class="next-badge">Prossimo</div>
+              </div>
+              <div class="appt-card-ai">
+                <span><i class="ti ti-sparkles" style="font-size:11px;margin-right:4px"></i>Calo fatturato −22% · Alert pass. gen.</span>
+                <i class="ti ti-chevron-right"></i>
+              </div>
+            </div>
+
+            <div class="appt-card" onclick="openDetail(1)">
+              <div class="appt-card-head">
+                <div class="appt-time-col"><div class="appt-hr">11</div><div class="appt-min">:30</div></div>
+                <div class="appt-vdiv"></div>
+                <div class="appt-main">
+                  <div class="appt-co">B.F. SNC Ferrari</div>
+                  <div class="appt-det">Carzago Riviera · Rubinetteria · 5 dip.</div>
+                </div>
+              </div>
+              <div class="appt-card-ai">
+                <span><i class="ti ti-sparkles" style="font-size:11px;margin-right:4px"></i>Coppia imprenditoriale · Zero digitale</span>
+                <i class="ti ti-chevron-right"></i>
+              </div>
+            </div>
+
+            <div class="appt-card" onclick="openDetail(2)">
+              <div class="appt-card-head">
+                <div class="appt-time-col"><div class="appt-hr">15</div><div class="appt-min">:00</div></div>
+                <div class="appt-vdiv"></div>
+                <div class="appt-main">
+                  <div class="appt-co">Studio Sant'Agostino</div>
+                  <div class="appt-det">Borgosatollo · Odontoiatrico · 4 dip.</div>
+                </div>
+              </div>
+              <div class="appt-card-ai">
+                <span><i class="ti ti-sparkles" style="font-size:11px;margin-right:4px"></i>Margine &lt;1% · Reputazione 4,86★</span>
+                <i class="ti ti-chevron-right"></i>
+              </div>
+            </div>
+
+            <div class="appt-card" onclick="openDetail(3)">
+              <div class="appt-card-head">
+                <div class="appt-time-col"><div class="appt-hr">16</div><div class="appt-min">:00</div></div>
+                <div class="appt-vdiv"></div>
+                <div class="appt-main">
+                  <div class="appt-co">Paesaggio &amp; Design</div>
+                  <div class="appt-det">Mazzano · Aree verdi · ~10 dip.</div>
+                </div>
+              </div>
+              <div class="appt-card-ai">
+                <span><i class="ti ti-sparkles" style="font-size:11px;margin-right:4px"></i>2 soci · 2 entità legali · Google 5★</span>
+                <i class="ti ti-chevron-right"></i>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- DETAIL VIEW -->
+      <div class="view" id="view-detail">
+        <div class="co-header">
+          <div class="back-row" onclick="goBack()">
+            <i class="ti ti-arrow-left"></i>
+            <span>Agenda del giorno</span>
+          </div>
+          <div class="co-switcher" id="co-switcher"></div>
+          <div class="co-name" id="co-name-h"></div>
+          <div class="co-sub" id="co-sub-h"></div>
+          <div class="co-meta">
+            <div class="co-time-badge" id="co-time-h"></div>
+            <div class="co-ph"><i class="ti ti-phone" style="font-size:12px"></i><span id="co-ph-h"></span></div>
+          </div>
+        </div>
+
+        <div class="tab-bar">
+          <div class="d-tab active" onclick="switchTab('info',this)">Info</div>
+          <div class="d-tab" onclick="switchTab('numeri',this)">Numeri</div>
+          <div class="d-tab" onclick="switchTab('digital',this)">Digital</div>
+          <div class="d-tab" onclick="switchTab('ai',this)">AI</div>
+        </div>
+
+        <div class="detail-scroll">
+          <div class="tab-body">
+            <div class="d-panel active" id="p-info"></div>
+            <div class="d-panel" id="p-numeri"></div>
+            <div class="d-panel" id="p-digital"></div>
+            <div class="d-panel" id="p-ai"></div>
+          </div>
+        </div>
+
+        <div class="action-bar">
+          <a class="act-btn act-primary" id="act-call" href="#">
+            <i class="ti ti-phone" style="font-size:15px"></i>Chiama
+          </a>
+          <a class="act-btn act-secondary" id="act-nav" href="#" target="_blank">
+            <i class="ti ti-map-pin" style="font-size:15px"></i>Naviga
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="safari-bottom">
+      <i class="ti ti-arrow-left dim"></i>
+      <i class="ti ti-arrow-right dim"></i>
+      <i class="ti ti-share"></i>
+      <i class="ti ti-books"></i>
+      <i class="ti ti-layout-grid"></i>
+    </div>
+
+    <div class="home-indicator"><div class="home-bar"></div></div>
+
+  </div>
+</div>
+
+<script>
+const cos = [
+  {
+    name:'G & G S.R.L.', sub:'Strutture metalliche · Bedizzole (BS)',
+    time:'10:00', phone:'030 987 7834', url:'/gaito/0209/1',
+    nav:'Via+Tre+Bocche+12+Bedizzole+BS',
+    kpis:[
+      {l:'Fatturato 2023',v:'€ 1,68M',d:'−22% vs 2022',c:'down'},
+      {l:'Utile 2023',v:'€ 148K',d:'+1% vs 2022',c:'up'},
+      {l:'Dipendenti',v:'6',d:'titolare unico',c:''},
+      {l:'Fondazione',v:'2003',d:'SRL da ind.',c:''}
+    ],
+    anag:[
+      {k:'P.IVA',v:'02417630981'},{k:'Sede',v:'Via Tre Bocche 12, BS'},
+      {k:'ATECO',v:'25.11 – Strutture metalliche'},{k:'Titolare',v:'Guerini Fabio (unico)'},
+      {k:'Cap. sociale',v:'€ 10.000'},{k:'Sito',v:'falegnameriaguerrinifabio.it',link:'https://falegnameriaguerrinifabio.it'}
+    ],
+    soc:[{k:'Struttura',v:'Familiare, titolare unico'},{k:'Passaggio gen.',v:'Non rilevato — da esplorare'}],
+    fin:[
+      {t:'warn',title:'Calo fatturato',txt:'−22% nel 2023 (€2,15M → €1,68M). Possibile sofferenza su commesse edili locali.'},
+      {t:'ok',title:'Solidità',txt:'Nessun pregiudizievole. Attivo da 20+ anni. Marginalità discreta nonostante il calo.'},
+      {t:'info',title:'Mercato',txt:'Conto terzi per falegnami e imprese edili. Alta dipendenza ciclica dal settore costruzioni.'}
+    ],
+    socials:[
+      {name:'Sito',icon:'ti-world',on:true},{name:'Facebook',icon:'ti-brand-facebook',on:true},
+      {name:'Instagram',icon:'ti-brand-instagram',on:false},{name:'LinkedIn',icon:'ti-brand-linkedin',on:false}
+    ],
+    stars:0, rep:'Nessuna recensione Google pubblica. Reputazione locale solida per passaparola. Sponsor storico Trofeo FG Atletica Montirone.',
+    briefing:[
+      {t:'warn',title:'Criticità',txt:'«Sa quali commesse sono state più redditizie nell\'ultimo anno?» — calo 22% senza controllo di gestione.'},
+      {t:'ok',title:'Apertura consigliata',txt:'Valorizzare 20 anni di storia, poi: «Con questi numeri, sa dove sta guadagnando davvero?»'},
+      {t:'warn',title:'Alert pass. generazionale',txt:'Titolare unico, azienda matura. Da sondare con delicatezza nella seconda parte.'},
+      {t:'info',title:'Opportunità',txt:'Nessuna struttura manageriale. Controllo di gestione e pianificazione per commessa non presidiati.'}
+    ]
+  },
+  {
+    name:'B.F. SNC Ferrari', sub:'Rubinetteria conto terzi · Carzago Riviera (BS)',
+    time:'11:30', phone:'030 601 087', url:'/gaito/0209/2',
+    nav:'Via+Campagnolo+10+Carzago+Riviera+BS',
+    kpis:[
+      {l:'Fatturato',v:'N.D.',d:'SNC non pubblica',c:''},
+      {l:'Dipendenti',v:'5',d:'conduz. familiare',c:''},
+      {l:'Fondazione',v:'2013',d:'attiva',c:''},
+      {l:'Export',v:'Non ril.',d:'mercato locale',c:''}
+    ],
+    anag:[
+      {k:'P.IVA',v:'03484750983'},{k:'Sede',v:'Via Campagnolo 10, BS'},
+      {k:'ATECO',v:'25.41 – Fabbricazione rubinetti'},{k:'Soci',v:'Mauro Ferrari + Paola Bocchio'},
+      {k:'Forma giur.',v:'SNC (bilanci non pubblici)'},{k:'Sito',v:'Non presente'}
+    ],
+    soc:[{k:'Struttura',v:'Familiare, 2 soci operativi'},{k:'Passaggio gen.',v:'Non applicabile (recente)'}],
+    fin:[
+      {t:'warn',title:'Dati non disponibili',txt:'SNC: bilanci non pubblici. Stimato €200K–€600K da dimensione organico.'},
+      {t:'ok',title:'Stabilità',txt:'Nessun pregiudizievole. Committenti storici nella rubinetteria bresciana.'},
+      {t:'info',title:'Segnale strutturale',txt:'Assenza totale di struttura manageriale e presenza digitale. Gestione intuitiva.'}
+    ],
+    socials:[
+      {name:'Sito',icon:'ti-world',on:false},{name:'Facebook',icon:'ti-brand-facebook',on:false},
+      {name:'Instagram',icon:'ti-brand-instagram',on:false},{name:'LinkedIn',icon:'ti-brand-linkedin',on:false}
+    ],
+    stars:0, rep:'Nessuna presenza online. Reputazione interamente nella rete di committenti diretti e passaparola di settore.',
+    briefing:[
+      {t:'info',title:'Dinamica di coppia',txt:'Due soci presenti. Coinvolgere Paola Bocchio dalla prima parte — le decisioni sono condivise.'},
+      {t:'warn',title:'Rischio',txt:'Nessuna visione chiara dei margini per commessa. La mancanza di struttura è il problema e l\'opportunità.'},
+      {t:'ok',title:'Apertura consigliata',txt:'«Su quali lavori guadagnate di più?» — apre il controllo di gestione senza sembrare un attacco.'},
+      {t:'info',title:'Opportunità laterale',txt:'Zero digitale: se volessero allargare i committenti, il tema sviluppo commerciale è inesplorato.'}
+    ]
+  },
+  {
+    name:'Studio Sant\'Agostino', sub:'Odontoiatrico · Borgosatollo (BS)',
+    time:'15:00', phone:'030 2500230', url:'/gaito/0209/3',
+    nav:'Via+G.+Pascoli+5+Borgosatollo+BS',
+    kpis:[
+      {l:'Fatturato 2024',v:'€ 923K',d:'−8% vs 2023',c:'down'},
+      {l:'Utile 2024',v:'€ 4,7K',d:'−45% vs 2023',c:'down'},
+      {l:'Dipendenti',v:'3–5',d:'stabile',c:''},
+      {l:'Google',v:'4,86★',d:'72 recensioni',c:'up'}
+    ],
+    anag:[
+      {k:'P.IVA',v:'02627490986'},{k:'Sede',v:'Via G. Pascoli 5, BS'},
+      {k:'ATECO',v:'86.23 – Odontoiatrica'},{k:'Titolare',v:'Dr. Gianmaria Agnelli'},
+      {k:'Forma giur.',v:'SRL unipersonale'},{k:'Sito',v:'studiodottoragnelli.com',link:'https://www.studiodottoragnelli.com'}
+    ],
+    soc:[{k:'Struttura',v:'SRL unipersonale professionale'},{k:'Passaggio gen.',v:'Potenziale (studio 20 anni)'}],
+    fin:[
+      {t:'warn',title:'Margine critico',txt:'Utile <1% su €923K. Il dottore probabilmente non separa compenso professionale da utile d\'impresa.'},
+      {t:'ok',title:'Reputazione',txt:'4,86★ su Google (72 recensioni). Nessun pregiudizievole. Asset reputazionale molto solido.'},
+      {t:'info',title:'Trend',txt:'Crescita 2023 post-COVID assestata nel 2024. Costi fissi in aumento su personale e attrezzature.'}
+    ],
+    socials:[
+      {name:'Sito',icon:'ti-world',on:true},{name:'Google',icon:'ti-map-pin',on:true},
+      {name:'Yelp',icon:'ti-star',on:true},{name:'Instagram',icon:'ti-brand-instagram',on:false}
+    ],
+    stars:5, rep:'Reputazione eccellente: 4,86★ Google (72 rec.), positiva su Cylex e Yelp. Pazienti lodano professionalità e cortesia.',
+    briefing:[
+      {t:'warn',title:'Criticità finanziaria',txt:'Margine <1%. Domanda: «Come distingue i costi clinici dai costi d\'impresa ogni mese?»'},
+      {t:'info',title:'Interlocutore',txt:'Medico-imprenditore: identità clinica forte. Evitare approccio commerciale diretto. Partire dall\'attività.'},
+      {t:'ok',title:'Apertura consigliata',txt:'Riconoscere i 4,86★, poi: «Come si traduce questa qualità in sostenibilità economica nel lungo periodo?»'},
+      {t:'warn',title:'Pass. generazionale',txt:'Studio maturo 20 anni. Continuità dello studio (cessione, associazione) potenzialmente molto rilevante.'}
+    ]
+  },
+  {
+    name:'Paesaggio & Design', sub:'Aree verdi · Mazzano (BS)',
+    time:'16:00', phone:'030 535 7334', url:'/gaito/0209/4',
+    nav:'Via+Martiri+di+Belfiore+Mazzano+BS',
+    kpis:[
+      {l:'Fatturato stimato',v:'~€600K',d:'SAS non pubblica',c:''},
+      {l:'Dipendenti',v:'~10',d:'incl. vivaio',c:''},
+      {l:'Fondazione',v:'2015',d:'SAS + az. agricola',c:''},
+      {l:'Google',v:'5,0★',d:'punteggio pieno',c:'up'}
+    ],
+    anag:[
+      {k:'P.IVA',v:'03739240988'},{k:'Sede',v:'Via Martiri di Belfiore, BS'},
+      {k:'ATECO',v:'81.30 – Cura del paesaggio'},{k:'Soci',v:'Losa Borrini + Arici Adriano'},
+      {k:'Forma giur.',v:'SAS (bilanci non pubblici)'},{k:'Sito',v:'paesaggiodesign.com',link:'https://paesaggiodesign.com'}
+    ],
+    soc:[{k:'Struttura',v:'2 soci con ruoli distinti'},{k:'Referente',v:'Daniele Losa Borrini (amm.vo)'}],
+    fin:[
+      {t:'warn',title:'Dati non disponibili',txt:'SAS: bilanci non pubblici. Stimato €500K–€1M da organico e portafoglio progetti.'},
+      {t:'ok',title:'Crescita e reputazione',txt:'Google 5★, Houzz eccellente. Mercato verde domestico ancora in espansione.'},
+      {t:'info',title:'Complessità',txt:'Due entità legali (SAS + vivaio agricolo). Nessuna visione economica consolidata probabile.'}
+    ],
+    socials:[
+      {name:'Sito',icon:'ti-world',on:true},{name:'Facebook',icon:'ti-brand-facebook',on:true},
+      {name:'Instagram',icon:'ti-brand-instagram',on:true},{name:'Houzz',icon:'ti-star',on:true}
+    ],
+    stars:5, rep:'Reputazione eccellente: 5★ Google, recensioni Houzz molto positive. Menzionata su riviste di architettura del paesaggio.',
+    briefing:[
+      {t:'info',title:'Dinamica a due soci',txt:'Losa Borrini (amm.va) e Arici (cantieri). Verificare allineamento strategico prima di proporre qualsiasi percorso.'},
+      {t:'warn',title:'Complessità da esplorare',txt:'«Avete una fotografia economica consolidata delle due aziende?» — quasi certamente la risposta è no.'},
+      {t:'ok',title:'Apertura consigliata',txt:'Valorizzare 5★ e Houzz, poi: «Il vostro obiettivo è crescere, consolidare, o strutturarvi per delegare?»'},
+      {t:'info',title:'Opportunità',txt:'Mercato in espansione e team in crescita. Il tema scalabilità organizzativa è probabilmente già sentito.'}
+    ]
+  }
+];
+
+let currentCo = 0;
+let currentTab = 'info';
+
+function alertHtml(a) {
+  const cls = a.t === 'warn' ? 'warn' : a.t === 'ok' ? 'ok' : 'info';
+  const tcls = a.t === 'ok' ? 'ok' : a.t === 'info' ? 'info' : '';
+  return `<div class="alert ${cls}"><div class="at ${tcls}">${a.title}</div><div class="atxt">${a.txt}</div></div>`;
+}
+
+function renderSwitcher() {
+  document.getElementById('co-switcher').innerHTML = cos.map((c,i) =>
+    `<div class="co-pill ${i===currentCo?'active':''}" onclick="switchCo(${i})">${c.time}</div>`
+  ).join('');
+}
+
+function renderHeader() {
+  const co = cos[currentCo];
+  document.getElementById('co-name-h').textContent = co.name;
+  document.getElementById('co-sub-h').textContent = co.sub;
+  document.getElementById('co-time-h').textContent = co.time;
+  document.getElementById('co-ph-h').textContent = co.phone;
+  document.getElementById('url-path').textContent = co.url;
+  document.getElementById('act-call').href = 'tel:' + co.phone.replace(/\s/g,'');
+  document.getElementById('act-nav').href = 'https://maps.google.com/?q=' + co.nav;
+}
+
+function renderTabContent(name) {
+  const co = cos[currentCo];
+  if (name === 'info') {
+    document.getElementById('p-info').innerHTML =
+      `<div class="kpi-grid">${co.kpis.map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv ${k.c}">${k.v}</div><div class="kd ${k.c}">${k.d}</div></div>`).join('')}</div>
+      <div class="dsec">Anagrafica</div>
+      ${co.anag.map(r=>`<div class="irow"><span class="ik">${r.k}</span><span class="iv">${r.link?`<a href="${r.link}" target="_blank">${r.v}</a>`:r.v}</span></div>`).join('')}
+      <div class="dsec">Assetto</div>
+      ${co.soc.map(r=>`<div class="irow"><span class="ik">${r.k}</span><span class="iv">${r.v}</span></div>`).join('')}`;
+  }
+  if (name === 'numeri') {
+    document.getElementById('p-numeri').innerHTML = co.fin.map(a=>alertHtml(a)).join('');
+  }
+  if (name === 'digital') {
+    const stars = co.stars > 0 ? '★'.repeat(co.stars) : '—';
+    document.getElementById('p-digital').innerHTML =
+      `<div class="dsec">Canali attivi</div>
+      <div class="chips">${co.socials.map(s=>`<div class="chip ${s.on?'on':'off'}"><i class="ti ${s.icon}"></i>${s.name}</div>`).join('')}</div>
+      <div class="dsec" style="margin-top:16px">Reputazione</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="stars">${stars}</span>
+        <span style="font-size:12px;color:rgba(0,0,0,0.4)">${co.stars>0?co.stars+'/5':'Nessuna recensione pubblica'}</span>
+      </div>
+      <p style="font-size:12px;color:#1c1c1e;line-height:1.6">${co.rep}</p>`;
+  }
+  if (name === 'ai') {
+    document.getElementById('p-ai').innerHTML =
+      co.briefing.map(a=>alertHtml(a)).join('') +
+      `<button class="ai-cta" onclick="alert('In produzione: questa funzione genererà domande personalizzate via AI per ${co.name}')">
+        <i class="ti ti-sparkles"></i>Genera domande di qualifica
+      </button>`;
+  }
+}
+
+function renderAllTabs() {
+  ['info','numeri','digital','ai'].forEach(t => renderTabContent(t));
+}
+
+function switchCo(idx) {
+  currentCo = idx;
+  renderSwitcher();
+  renderHeader();
+  renderAllTabs();
+  document.querySelector('.detail-scroll').scrollTop = 0;
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.d-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.d-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('p-' + name).classList.add('active');
+  currentTab = name;
+}
+
+function openDetail(idx) {
+  currentCo = idx;
+  currentTab = 'info';
+  document.querySelectorAll('.d-tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  document.querySelectorAll('.d-panel').forEach((p,i) => p.classList.toggle('active', i===0));
+  renderSwitcher();
+  renderHeader();
+  renderAllTabs();
+  document.getElementById('view-agenda').classList.remove('active');
+  document.getElementById('view-detail').classList.add('active');
+}
+
+function goBack() {
+  document.getElementById('view-detail').classList.remove('active');
+  document.getElementById('view-agenda').classList.add('active');
+  document.getElementById('url-path').textContent = '/gaito/0209';
+}
+</script>
+
+</body>
+</html>
